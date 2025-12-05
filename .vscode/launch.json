@@ -21,10 +21,13 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "BuildCLI",
-      "program": "${workspaceFolder}/src/cli/bin/Debug/net7.0/cli.dll",
+      "program": "${workspaceFolder}/src/cli/bin/Debug/net9.0/cli.dll",
       "args": [
         "--file",
-        "../../samples/vm.bicep"
+        "../../samples/all.bicep",
+        "--params-file",
+        "../../samples/all.bicepparam",
+        "--grand-total"
       ],
       "env": {
         "BICEP_TRACING_ENABLED": "true"

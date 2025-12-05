@@ -4,50 +4,77 @@ public class ResourceType
 {
   public class AzureResourceType
   {
-    public string Name { get; set; }
+    public required string Name { get; set; }
 
-    public string ServiceName { get; set; }
+    public required string ServiceName { get; set; }
 
-    public Func<JsonElement, string> Size { get; set; }
+    public required Func<Resource, string> Size { get; set; }
 
-    public Func<string, string> Offer { get; set; }
+    public required Func<Resource, string> Kind { get; set; }
+
+    public required Func<string> Location { get; set; }
   }
 
-  public static AzureResourceType[] Types = {
-    new AzureResourceType()
+  public static AzureResourceType[] Types = [
+    new()
     {
       Name = "Microsoft.Compute/virtualMachines",
-      ServiceName = "virtual-machines",
-      Size = (element) => JsonSerializer.Deserialize<VirtualMachineProperties>(element)?.hardwareProfile.vmSize ?? "",
-      Offer = (size) =>
+      ServiceName = "Virtual Machines",
+      Location = () => "westus",
+      Size = (element) => element.properties.Deserialize<VirtualMachineProperties>()?.hardwareProfile.vmSize ?? "",
+      Kind = (element) =>
       {
-        var parts = size.ToLower().Split('_');
+        var parts = element.size?.ToLower().Split('_') ?? [];
         if (parts.Length < 2)
         {
-          return size;
+          return element.size ?? "";
         }
         return $"linux-{parts[1]}{parts[2]}-{parts[0]}";
       }
     },
-    new AzureResourceType()
+    new()
     {
       Name = "Microsoft.ContainerService/managedClusters",
       ServiceName = "kubernetes-service",
-      Size = (element) => element.Deserialize<ManagedClusterProperties>()?.agentPoolProfiles?[0]?.vmSize ?? "",
-      Offer = (size) =>
+      Location = () => "westus",
+      Size = (element) => element.properties.Deserialize<ManagedClusterProperties>()?.agentPoolProfiles?[0]?.vmSize ?? "",
+      Kind = (element) =>
       {
         return $"linux";
       }
     },
-    new AzureResourceType()
+    new()
     {
       Name = "Microsoft.Storage/storageAccounts",
       ServiceName = "storage",
-      Size = (element) => element.ValueKind == JsonValueKind.Undefined ? element.Deserialize<ManagedClusterProperties>()?.agentPoolProfiles?[0]?.vmSize ?? "" : "",
-      Offer = (size) =>
+      Location = () => "westus",
+      Size = (element) => "storageAccount",
+      Kind = (element) =>
+      {
+        return $"linux";
+      }
+    },
+    new()
+    {
+      Name = "Microsoft.Storage/storageAccounts/blobServices",
+      ServiceName = "",
+      Location = () => "westus",
+      Size = (element) => "0",
+      Kind = (element) =>
+      {
+        return $"linux";
+      }
+    },
+    new()
+    {
+      Name = "Microsoft.Storage/storageAccounts/blobServices/containers",
+      ServiceName = "",
+      Location = () => "westus",
+      Size = (element) => "0",
+      Kind = (element) =>
       {
         return $"linux";
       }
     }
-  };
+  ];
 }

@@ -4,10 +4,10 @@
   "features": {
     "ghcr.io/devcontainers/features/azure-cli:1": {},
     "ghcr.io/devcontainers/features/common-utils:2": {},
-    "ghcr.io/eitsupi/devcontainer-features/jq-likes:1": {},
+    "ghcr.io/eitsupi/devcontainer-features/jq-likes:2": {},
     "ghcr.io/devcontainers/features/node:1": {},
     "ghcr.io/devcontainers/features/docker-in-docker:2": {},
-    "ghcr.io/devcontainers/features/dotnet:1": {},
+    "ghcr.io/devcontainers/features/dotnet:2": {},
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers-contrib/features/npm-package:1": {
       "npm-check-updates": "latest"
@@ -16,12 +16,14 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "GitHub.copilot",
-        "GitHub.copilot-labs",
         "EditorConfig.EditorConfig",
-        "ms-vscode.azurecli",
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "GitHub.vscode-github-actions",
         "ms-azuretools.vscode-bicep",
-        "ms-azuretools.vscode-docker"
+        "ms-azuretools.vscode-docker",
+        "ms-dotnettools.csdevkit",
+        "ms-vscode.azurecli"
       ]
     }
   },
