@@ -1,0 +1,49 @@
+name: Example Cost Estimate Pipeline
+
+on:
+  workflow_dispatch:
+
+jobs:
+  estimate:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - id: cost-csv
+        name: Estimate cost with output in csv format
+        uses: polatengin/washington@main
+        with:
+          file: tests/fixtures/showcase.bicep
+          output-format: csv
+
+      - id: cost-json
+        name: Estimate cost with output in json format
+        uses: polatengin/washington@main
+        with:
+          file: tests/fixtures/showcase.bicep
+          output-format: json
+
+      - name: Print estimate from json output
+        run: |
+          echo "Monthly total: ${{ steps.cost-json.outputs.total-cost }}"
+
+      - id: cost-threshold
+        name: Estimate cost with threshold check
+        uses: polatengin/washington@main
+        continue-on-error: true
+        with:
+          file: tests/fixtures/showcase.bicep
+          fail-on-threshold: 1000
+
+      - id: cost-markdown
+        name: Estimate cost with output in markdown format
+        uses: polatengin/washington@main
+        with:
+          file: tests/fixtures/showcase.bicep
+          output-format: markdown
+
+      - name: Append summary
+        run: |
+          echo '${{ steps.cost-markdown.outputs.estimation-result }}' >> "$GITHUB_STEP_SUMMARY"

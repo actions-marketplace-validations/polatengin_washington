@@ -1,0 +1,148 @@
+#!/usr/bin/env node
+
+import { readFile, writeFile } from 'node:fs/promises';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const repoRoot = join(__dirname, '..', '..', '..');
+const registryPath = join(repoRoot, 'src', 'cli', 'Mappers', 'MapperRegistry.cs');
+const mappersDir = join(repoRoot, 'src', 'cli', 'Mappers');
+const docPath = join(repoRoot, 'docs', '50-guides', 'supported-resources.md');
+
+type RegistryEntry = {
+  group: string;
+  mapperClass: string;
+};
+
+type RegistryEntryWithResourceType = RegistryEntry & {
+  resourceType: string;
+};
+
+const countMarkerPatterns = [
+  /\{\/\* GENERATED:RESOURCE_COUNT \*\/\}([\s\S]*?)\{\/\* \/GENERATED:RESOURCE_COUNT \*\/\}/,
+  /<!-- GENERATED:RESOURCE_COUNT -->([\s\S]*?)<!-- \/GENERATED:RESOURCE_COUNT -->/,
+];
+
+const matrixMarkerPatterns = [
+  /\{\/\* BEGIN GENERATED SUPPORTED RESOURCE MATRIX \*\/\}([\s\S]*?)\{\/\* END GENERATED SUPPORTED RESOURCE MATRIX \*\/\}/,
+  /<!-- BEGIN GENERATED SUPPORTED RESOURCE MATRIX -->([\s\S]*?)<!-- END GENERATED SUPPORTED RESOURCE MATRIX -->/,
+];
+
+function replaceGeneratedSection(content, patterns, replacement, missingMarkerError) {
+  for (const pattern of patterns) {
+    if (pattern.test(content)) {
+      return content.replace(pattern, replacement);
+    }
+  }
+
+  throw new Error(missingMarkerError);
+}
+
+function parseRegistryEntries(content) {
+  const entries: RegistryEntry[] = [];
+  let currentGroup = 'Ungrouped';
+
+  for (const line of content.split(/\r?\n/)) {
+    const groupMatch = line.match(/^\s*\/\/\s*(P\d+:\s*.+)$/);
+    if (groupMatch) {
+      currentGroup = groupMatch[1].trim();
+      continue;
+    }
+
+    const registerMatch = line.match(/Register\(new\s+(\w+)\(\)\);/);
+    if (registerMatch) {
+      entries.push({
+        group: currentGroup,
+        mapperClass: registerMatch[1],
+      });
+    }
+  }
+
+  return entries;
+}
+
+async function readResourceType(mapperClass) {
+  const mapperPath = join(mappersDir, `${mapperClass}.cs`);
+  const content = await readFile(mapperPath, 'utf8');
+  const match = content.match(/public\s+string\s+ResourceType\s*=>\s*"([^"]+)";/);
+
+  if (!match) {
+    throw new Error(`Could not find ResourceType in ${mapperClass}.cs`);
+  }
+
+  return match[1];
+}
+
+function summarizeGroups(entries) {
+  const counts = new Map();
+
+  for (const entry of entries) {
+    counts.set(entry.group, (counts.get(entry.group) ?? 0) + 1);
+  }
+
+  return [...counts.entries()].map(([group, count]) => ({ group, count }));
+}
+
+function buildGeneratedMatrix(entries) {
+  const lines = [];
+  const groupSummary = summarizeGroups(entries);
+
+  lines.push('This matrix is generated from `src/cli/Mappers/MapperRegistry.cs` and each mapper\'s `ResourceType` property.');
+  lines.push('The registry order is preserved so the table stays aligned with the implementation.');
+  lines.push('');
+  lines.push('### Registry Summary');
+  lines.push('');
+  lines.push('| Registry Group | Mappers |');
+  lines.push('| --- | ---: |');
+
+  for (const { group, count } of groupSummary) {
+    lines.push(`| ${group} | ${count} |`);
+  }
+
+  lines.push('');
+  lines.push('### Coverage Matrix');
+  lines.push('');
+  lines.push('| Registry Group | ARM Resource Type | Mapper |');
+  lines.push('| --- | --- | --- |');
+
+  for (const entry of entries) {
+    lines.push(`| ${entry.group} | \`${entry.resourceType}\` | \`${entry.mapperClass}\` |`);
+  }
+
+  lines.push('');
+  return lines.join('\n');
+}
+
+async function main() {
+  const registryContent = await readFile(registryPath, 'utf8');
+  const entries = parseRegistryEntries(registryContent);
+  const entriesWithResourceTypes: RegistryEntryWithResourceType[] = await Promise.all(
+    entries.map(async entry => ({
+      ...entry,
+      resourceType: await readResourceType(entry.mapperClass),
+    }))
+  );
+
+  const docContent = await readFile(docPath, 'utf8');
+
+  const updatedCount = `{/* GENERATED:RESOURCE_COUNT */}${entriesWithResourceTypes.length}{/* /GENERATED:RESOURCE_COUNT */}`;
+  const updatedMatrix = `{/* BEGIN GENERATED SUPPORTED RESOURCE MATRIX */}\n${buildGeneratedMatrix(entriesWithResourceTypes)}{/* END GENERATED SUPPORTED RESOURCE MATRIX */}`;
+
+  const updatedDoc = replaceGeneratedSection(
+    replaceGeneratedSection(
+      docContent,
+      countMarkerPatterns,
+      updatedCount,
+      'Supported resources doc is missing the resource count marker.',
+    ),
+    matrixMarkerPatterns,
+    updatedMatrix,
+    'Supported resources doc is missing the generated matrix markers.',
+  );
+
+  await writeFile(docPath, updatedDoc, 'utf8');
+  console.log(`Updated supported resources doc with ${entriesWithResourceTypes.length} registry entries.`);
+}
+
+await main();

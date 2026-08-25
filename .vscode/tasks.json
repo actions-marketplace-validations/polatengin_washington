@@ -3,13 +3,10 @@
   "tasks": [
     {
       "label": "BuildCLI",
-      "type": "process",
-      "command": "dotnet",
+      "type": "shell",
+      "command": "make",
       "args": [
-        "build",
-        "${workspaceFolder}/src/cli/cli.csproj",
-        "/property:GenerateFullPaths=true",
-        "/consoleloggerparameters:NoSummary"
+        "build-cli"
       ],
       "problemMatcher": "$msCompile"
     },
@@ -19,24 +16,31 @@
       "command": "dotnet",
       "args": [
         "watch",
-        "run",
-        "${workspaceFolder}/src/cli/cli.csproj",
-        "/property:GenerateFullPaths=true",
-        "/consoleloggerparameters:NoSummary"
+        "--project",
+        "${workspaceFolder}/src/cli/washington.csproj",
+        "run"
       ],
       "problemMatcher": "$msCompile"
     },
     {
-      "label": "vscode-extension-compile",
-      "type": "npm",
-      "script": "compile",
-      "path": "src/vscode-extension",
-      "group": "build",
-      "problemMatcher": [],
-      "detail": "webpack",
+      "label": "CopyCLIToBin",
+      "type": "shell",
+      "command": "rm -rf ${workspaceFolder}/src/vscode-extension/bin && mkdir -p ${workspaceFolder}/src/vscode-extension/bin && cp -r ${workspaceFolder}/src/cli/bin/Release/net10.0/. ${workspaceFolder}/src/vscode-extension/bin/ && chmod +x ${workspaceFolder}/src/vscode-extension/bin/bce || true",
       "dependsOn": [
         "BuildCLI"
-      ]
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "vscode-extension-compile",
+      "type": "shell",
+      "command": "make",
+      "args": [
+        "build-extension"
+      ],
+      "group": "build",
+      "problemMatcher": [],
+      "detail": "make build-extension"
     }
   ]
 }
